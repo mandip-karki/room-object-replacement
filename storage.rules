@@ -1,0 +1,23 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // room_photos/{uid}/... — only the owning user may read/write their own uploads.
+    match /room_photos/{uid}/{fileName} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // products/{companyId}/... — catalog images, readable by any signed-in user,
+    // writable only via the Admin SDK (Cloud Functions) or Super Admin's own uid check server-side.
+    match /products/{companyId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.role == 'super_admin';
+    }
+
+    // results/{jobId}/... — replacement results, written only by Cloud Functions.
+    match /results/{jobId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+  }
+}
