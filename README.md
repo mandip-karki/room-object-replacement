@@ -10,12 +10,17 @@ model in the original build spec.
 
 ## Status
 
-**Phase 1 (Foundation) — scaffolded, not yet buildable end-to-end.**
+**Phase 1 (Foundation) — scaffolded and building. Not yet wired to real Firebase/fal.ai credentials.**
 
 This repo currently contains:
 - `app/` — Android project skeleton (Gradle + Compose + Navigation), login
   screen, role-based routing, Firestore/Storage/Functions repositories, and
-  stub screens for all three roles.
+  stub screens for all three roles. **Compiles and packages cleanly**
+  (`gradlew assembleDebug` produces `app/build/outputs/apk/debug/app-debug.apk`)
+  — verified in this environment with a placeholder `google-services.json`
+  (Google Services plugin requires *a* file to be present, even a fake one,
+  to run resource processing; the real one comes from your Firebase project
+  in step 2 below).
 - `functions/` — Firebase Cloud Functions (TypeScript) implementing the
   `replace` / `getReplacementJob` API contract, Firestore-backed job queue,
   and a `createSubAccount` callable that sets Auth custom claims. **Compiles
@@ -24,16 +29,25 @@ This repo currently contains:
   enforced server-side (every rule checks `request.auth.token.companyId`,
   never a client-supplied value).
 
-**Not done yet, and blocked on manual setup below:** the Android app has not
-been compiled (no JDK/Android SDK available in this environment), no Firebase
-project exists yet, and no fal.ai account/key exists yet. Nothing has real
-credentials wired in.
+**Not done yet, and blocked on manual setup below:** no Firebase project
+exists yet, and no fal.ai account/key exists yet. Nothing has real
+credentials wired in, so the app builds but can't actually sign in or run a
+replacement job until you complete the checklist.
 
-## Manual setup checklist (you need to do this — I can't create accounts or run GUI installers for you)
+### Local toolchain (already installed on this machine)
 
-### 1. Local tooling
-- [ ] Install **Android Studio** (Kotlin + Gradle + Android SDK come bundled): https://developer.android.com/studio
-- [ ] Open this folder (`Image Replacement`) in Android Studio and let it sync Gradle — this will download the Android SDK components declared in `app/build.gradle.kts` (compileSdk 34, minSdk 26).
+To verify the app actually compiles, a command-line-only Android toolchain
+was installed here (no full Android Studio GUI, since that install wizard
+can't be driven headlessly):
+- Eclipse Temurin JDK 17 → `C:\Program Files\Eclipse Adoptium\jdk-17.0.20.8-hotspot`
+- Gradle 8.7 (standalone, used only to generate the wrapper) → `C:\Android\gradle-8.7`
+- Android SDK (platform-tools, platform 34, build-tools 34.0.0) → `C:\Android\Sdk`
+- The project now has its own Gradle wrapper (`gradlew`/`gradlew.bat`, committed to git) pinned to Gradle 8.7, so future builds don't need the standalone Gradle install.
+
+If you install Android Studio later, point its SDK manager at `C:\Android\Sdk` (or let it manage its own — either works, `local.properties` just needs to point at whichever one you use).
+
+### 1. Local tooling (if you want the full IDE)
+- [ ] Install **Android Studio** for the IDE/emulator/debugger experience: https://developer.android.com/studio (not required just to build — `gradlew` already works from the command line)
 - [ ] Install **Node.js 20** if you don't already have it (this environment has Node 24, which works for `npm install`/`tsc` but Cloud Functions deploys expect Node 20 — see `functions/package.json` `engines`).
 - [ ] Install the **Firebase CLI**: `npm install -g firebase-tools`, then `firebase login`.
 
@@ -66,7 +80,11 @@ cd functions
 npm install
 npm run serve
 
-# App: open the repo root in Android Studio, select a device/emulator, Run
+# App, from the command line (once app/google-services.json is real):
+.\gradlew.bat assembleDebug
+# APK lands at app\build\outputs\apk\debug\app-debug.apk
+
+# Or open the repo root in Android Studio, select a device/emulator, Run
 ```
 
 ## Project layout
