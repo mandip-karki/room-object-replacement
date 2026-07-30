@@ -1,45 +1,46 @@
 package com.roomswap.app.data.repository
 
-import com.google.firebase.functions.FirebaseFunctions
-import com.google.firebase.firestore.FirebaseFirestore
-import com.roomswap.app.data.model.JobStatus
+import com.roomswap.app.SupabaseClientProvider
 import com.roomswap.app.data.model.ReplacementJob
-import kotlinx.coroutines.tasks.await
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.functions.functions
+import io.github.jan.supabase.postgrest.from
+import io.ktor.client.call.body
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+@Serializable
+private data class ReplaceRequest(
+    @SerialName("room_photo_url") val roomPhotoUrl: String,
+    @SerialName("tap_x") val tapX: Double,
+    @SerialName("tap_y") val tapY: Double,
+    @SerialName("tapped_region_image_url") val tappedRegionImageUrl: String,
+    @SerialName("replacement_image_url") val replacementImageUrl: String,
+)
+
+@Serializable
+private data class ReplaceResponse(@SerialName("job_id") val jobId: String)
 
 class ReplacementRepository(
-    private val functions: FirebaseFunctions = FirebaseFunctions.getInstance(),
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
+    private val client: SupabaseClient = SupabaseClientProvider.client,
 ) {
-    /** Calls the `replace` Cloud Function; returns the job_id to poll. */
+    /** Calls the `replace` Edge Function; returns the job id to poll for a result. */
     suspend fun startReplacement(
         roomPhotoUrl: String,
         tapX: Double,
         tapY: Double,
+        tappedRegionImageUrl: String,
         replacementImageUrl: String,
     ): String {
-        val payload = hashMapOf(
-            "room_photo_url" to roomPhotoUrl,
-            "tap_x" to tapX,
-            "tap_y" to tapY,
-            "replacement_image_url" to replacementImageUrl,
+        val response = client.functions.invoke(
+            "replace",
+            ReplaceRequest(roomPhotoUrl, tapX, tapY, tappedRegionImageUrl, replacementImageUrl),
         )
-        val result = functions.getHttpsCallable("replace").call(payload).await()
-        @Suppress("UNCHECKED_CAST")
-        val data = result.data as Map<String, Any>
-        return data["job_id"] as String
+        return response.body<ReplaceResponse>().jobId
     }
 
-    suspend fun getJob(jobId: String): ReplacementJob {
-        val doc = firestore.collection("replacement_jobs").document(jobId).get().await()
-        return ReplacementJob(
-            id = doc.id,
-            userId = doc.getString("userId") ?: "",
-            roomPhotoId = doc.getString("roomPhotoId") ?: "",
-            productId = doc.getString("productId"),
-            customItemImageUrl = doc.getString("customItemImageUrl"),
-            resultImageUrl = doc.getString("resultImageUrl"),
-            status = JobStatus.valueOf(doc.getString("status") ?: JobStatus.PENDING.name),
-            createdAt = doc.getLong("createdAt") ?: 0L,
-        )
-    }
+    suspend fun getJob(jobId: String): ReplacementJob =
+        client.from("replacement_jobs").select {
+            filter { eq("id", jobId) }
+        }.decodeSingle()
 }

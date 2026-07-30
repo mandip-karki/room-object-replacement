@@ -11,18 +11,9 @@ build/
 *.apk
 *.aab
 
-# Firebase
-google-services.json
-.firebase/
-.firebaserc
-firebase-debug.log
-firestore-debug.log
-ui-debug.log
-
-# Cloud Functions
-functions/node_modules/
-functions/lib/
-functions/.env
+# Supabase
+supabase/.temp/
+supabase/.branches/
 
 # Secrets
 *.env

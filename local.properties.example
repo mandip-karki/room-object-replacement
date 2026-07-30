@@ -1,1 +1,3 @@
 sdk.dir=C\:\\Users\\<you>\\AppData\\Local\\Android\\Sdk
+supabase.url=https\://<your-project-ref>.supabase.co
+supabase.anonKey=<your-anon-key>

@@ -1,16 +1,28 @@
 package com.roomswap.app.data.model
 
-enum class JobStatus { PENDING, DONE, FAILED }
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
+@Serializable
+enum class JobStatus {
+    @SerialName("pending") PENDING,
+    @SerialName("done") DONE,
+    @SerialName("failed") FAILED,
+}
+
+@Serializable
 data class ReplacementJob(
     val id: String = "",
-    val userId: String = "",
-    val roomPhotoId: String = "",
-    val productId: String? = null,
-    val customItemImageUrl: String? = null,
-    val tapX: Double = 0.0,
-    val tapY: Double = 0.0,
-    val resultImageUrl: String? = null,
+    @SerialName("user_id") val userId: String = "",
+    @SerialName("company_id") val companyId: String = "",
+    @SerialName("room_photo_url") val roomPhotoUrl: String = "",
+    @SerialName("tap_x") val tapX: Double = 0.0,
+    @SerialName("tap_y") val tapY: Double = 0.0,
+    @SerialName("product_id") val productId: String? = null,
+    @SerialName("custom_item_image_url") val customItemImageUrl: String? = null,
+    @SerialName("tapped_label") val tappedLabel: String? = null,
+    @SerialName("result_image_url") val resultImageUrl: String? = null,
     val status: JobStatus = JobStatus.PENDING,
-    val createdAt: Long = 0L,
+    val error: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
 )

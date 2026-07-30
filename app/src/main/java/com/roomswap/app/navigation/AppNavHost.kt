@@ -28,7 +28,7 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
         composable(Routes.SUPER_ADMIN_CATALOG) { ProductCatalogManagerScreen() }
         composable(Routes.CLIENT_ADMIN_SUB_ACCOUNTS) { SubAccountManagerScreen() }
         composable(Routes.ROOM_PHOTO) {
-            RoomPhotoScreen { _, _, _ -> navController.navigate(Routes.PRODUCT_PICKER) }
+            RoomPhotoScreen { _, _, _, _ -> navController.navigate(Routes.PRODUCT_PICKER) }
         }
         composable(Routes.PRODUCT_PICKER) {
             ProductPickerScreen(

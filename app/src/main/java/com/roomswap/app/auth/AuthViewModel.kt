@@ -34,7 +34,9 @@ class AuthViewModel(
     }
 
     fun signOut() {
-        repository.signOut()
-        _uiState.value = AuthUiState.Idle
+        viewModelScope.launch {
+            repository.signOut()
+            _uiState.value = AuthUiState.Idle
+        }
     }
 }

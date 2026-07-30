@@ -1,17 +1,18 @@
 package com.roomswap.app.data.repository
 
-import com.google.firebase.firestore.FirebaseFirestore
+import com.roomswap.app.SupabaseClientProvider
 import com.roomswap.app.data.model.Company
-import kotlinx.coroutines.tasks.await
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.postgrest.from
 
 class CompanyRepository(
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
+    private val client: SupabaseClient = SupabaseClientProvider.client,
 ) {
-    // Only reachable for super_admin per firestore.rules; client never passes companyId itself.
+    // Only reachable for super_admin per the RLS policy on `companies`; the client never passes companyId itself.
     suspend fun listCompanies(): List<Company> =
-        firestore.collection("companies").get().await().toObjects(Company::class.java)
+        client.from("companies").select().decodeList()
 
     suspend fun createCompany(company: Company) {
-        firestore.collection("companies").document().set(company).await()
+        client.from("companies").insert(company)
     }
 }

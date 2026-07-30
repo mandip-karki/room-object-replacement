@@ -1,17 +1,18 @@
 package com.roomswap.app.data.repository
 
-import com.google.firebase.firestore.FirebaseFirestore
+import com.roomswap.app.SupabaseClientProvider
 import com.roomswap.app.data.model.Product
-import kotlinx.coroutines.tasks.await
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.postgrest.from
 
 class ProductRepository(
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
+    private val client: SupabaseClient = SupabaseClientProvider.client,
 ) {
     suspend fun listCatalog(): List<Product> =
-        firestore.collection("products").get().await().toObjects(Product::class.java)
+        client.from("products").select().decodeList()
 
-    // Server (Firestore rules) restricts writes to the Main Company's super_admin.
+    // The `products` RLS policy restricts writes to the Main Company's super_admin.
     suspend fun addProduct(product: Product) {
-        firestore.collection("products").document().set(product).await()
+        client.from("products").insert(product)
     }
 }
