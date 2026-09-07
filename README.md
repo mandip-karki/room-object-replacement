@@ -38,29 +38,41 @@ step only, everything else in this stack stays the same.
 
 ## Status
 
-**Phase 1 (Foundation) — scaffolded and building. Not yet wired to real Supabase/Hugging Face credentials.**
+**Phase 1 (Foundation) — live.** The Supabase project is created, schema is
+pushed, both Edge Functions are deployed, and the Android app is wired to the
+real project. One manual step remains: a Hugging Face token (see below) —
+without it, `replace` will insert the job row and then fail the AI step with
+a clear "HF_TOKEN is not configured" error.
 
-This repo currently contains:
+- **Supabase project**: `RoomSwap`, ref `fvmlxyzpemyfplzlxncl`, org `RoomSwap`
+  (`trjztrcditsjypbnvbvh`), region `us-east-1` —
+  https://supabase.com/dashboard/project/fvmlxyzpemyfplzlxncl. Created via the
+  Supabase CLI using a personal access token you provided; the CLI session
+  used to set this up is not persisted anywhere beyond this local machine's
+  `supabase` CLI config. The database password was generated locally and is
+  not recorded in this repo or README — if you need it later (e.g. for a
+  direct Postgres connection), reset it from the dashboard's Database
+  settings rather than trying to recover it.
 - `app/` — Android project skeleton (Gradle + Compose + Navigation), login
   screen, role-based routing, Postgrest/Storage/Functions repositories via
   supabase-kt, and stub screens for all three roles. **Compiles and packages
   cleanly** (`gradlew assembleDebug` produces
-  `app/build/outputs/apk/debug/app-debug.apk`) — verified in this environment
-  with placeholder Supabase URL/key values in `local.properties`.
-- `supabase/functions/` — Supabase Edge Functions (Deno/TypeScript)
-  implementing the `replace` API (segmentation-free caption+edit pipeline
-  above) and `create-sub-account` (sets up a new Sub-Account under the
-  calling Client Admin's own company). **Type-checks cleanly** (`deno check`)
-  — verified in this environment.
-- `supabase/migrations/0001_init.sql` — Postgres schema + Row Level Security
-  policies enforcing tenant isolation (every policy checks the caller's own
-  `company_id` via a `security definer` helper function reading `profiles`,
-  never a client-supplied value) plus Storage bucket policies.
-
-**Not done yet, and blocked on manual setup below:** no Supabase project
-exists yet, and no Hugging Face token exists yet. Nothing has real
-credentials wired in, so the app builds but can't actually sign in or run a
-replacement job until you complete the checklist.
+  `app/build/outputs/apk/debug/app-debug.apk`) — verified in this environment,
+  now with the real project's URL/anon key in `local.properties` (gitignored).
+- `supabase/functions/` — **deployed**: `replace` (segmentation-free
+  caption+edit pipeline above) and `create-sub-account` (sets up a new
+  Sub-Account under the calling Client Admin's own company). Also
+  **type-checks cleanly** (`deno check`) — verified in this environment.
+- `supabase/migrations/0001_init.sql` — **applied** to the live database.
+  Postgres schema + Row Level Security policies enforcing tenant isolation
+  (every policy checks the caller's own `company_id` via a `security
+  definer` helper function reading `profiles`, never a client-supplied
+  value) plus Storage bucket policies.
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are
+  **auto-injected into every Edge Function by the Supabase platform** —
+  the `SUPABASE_` prefix is reserved and can't be set manually
+  (`supabase secrets set` rejects it), which is why `supabaseAdmin.ts` just
+  reads `Deno.env.get(...)` for these without any setup step.
 
 ### Local toolchain (already installed on this machine)
 
@@ -73,42 +85,51 @@ Android Studio were installed here:
 - The project has its own Gradle wrapper (`gradlew`/`gradlew.bat`, committed to git) pinned to Gradle 8.11.1, so building doesn't need anything installed globally beyond a JDK.
 - Firebase CLI was installed via npm earlier in this project's history but is no longer needed — Supabase CLI (`npm install -g supabase`) is what you'll want instead; it wasn't installed here since it needs an interactive `supabase login` you must run yourself.
 
-### 1. Local tooling
-- [ ] Install the **Supabase CLI**: `npm install -g supabase`, then `supabase login` (opens a browser — this is your own account, not something I can do for you)
-- [ ] Install **Node.js 20+** if you don't already have it (for the Supabase CLI and any local scripting)
+### 1. Local tooling — done
+Supabase CLI installed (`npm install -g supabase`) and authenticated with the
+access token you provided. If you want to run `supabase` commands yourself
+later from a different machine, install the CLI there and run
+`supabase login` (opens a browser under your own account).
 
-### 2. Supabase project
-- [ ] Create a project at https://supabase.com/dashboard (free tier, no card required)
-- [ ] From your project's API settings, copy the **Project URL** and **anon public key**
-- [ ] Put them in `local.properties` (copy from `local.properties.example`) as `supabase.url` and `supabase.anonKey` — this file is gitignored, never commit real keys
-- [ ] Link the CLI to your project: `supabase link --project-ref <your-project-ref>`
-- [ ] Push the schema: `supabase db push` (runs `supabase/migrations/0001_init.sql`)
-- [ ] Deploy the Edge Functions: `supabase functions deploy replace` and `supabase functions deploy create-sub-account`
-- [ ] Set the Hugging Face token as a function secret (see step 3): `supabase secrets set HF_TOKEN=hf_...`
-- [ ] Also set `SUPABASE_SERVICE_ROLE_KEY` as a function secret — Edge Functions need it to bypass RLS for writing job rows and Storage results: `supabase secrets set SUPABASE_SERVICE_ROLE_KEY=<from API settings>` (`SUPABASE_URL` and `SUPABASE_ANON_KEY` are injected automatically by Supabase, no need to set those yourself)
-- [ ] Create your first Super Admin manually: sign up a user (e.g. via `supabase.auth.signUpWith(Email)` from a quick script, or the dashboard's Auth panel), then insert a row into `companies` (type `'main'`) and `profiles` (role `'super_admin'`) for that user via the SQL editor — everything after that (Client Admins, Sub-Accounts) is created through the app / `create-sub-account` function.
+### 2. Supabase project — done
+Project created, schema pushed, both Edge Functions deployed, `local.properties`
+filled in with the real URL/anon key. See the Status section above for the
+project ref and dashboard link. One thing left here:
+- [ ] **Create your first Super Admin.** Sign up a user (via the dashboard's
+      Auth panel, or `supabase.auth.signUpWith(Email)` from the app once you
+      run it), then in the SQL editor:
+      ```sql
+      insert into companies (name, type, created_by) values ('Your Company', 'main', '<the new user''s uid>');
+      insert into profiles (id, company_id, role, email) values ('<uid>', '<the company id you just inserted>', 'super_admin', '<their email>');
+      ```
+      Everything after that (Client Admins, Sub-Accounts) is created through
+      the app / `create-sub-account` function.
 
-### 3. Hugging Face
+### 3. Hugging Face — needs your token
 - [ ] Create a free account at https://huggingface.co
 - [ ] Generate a **fine-grained token** with "Make calls to Inference Providers" permission: https://huggingface.co/settings/tokens/new?ownUserPermissions=inference.serverless.write&tokenType=fineGrained
-- [ ] Set it as a Supabase function secret: `supabase secrets set HF_TOKEN=hf_...`
+- [ ] Give me the token value and I'll run `supabase secrets set HF_TOKEN=hf_...` — or run it yourself if you'd rather not paste it here
 - [ ] Test the pipeline against a few real room photos before trusting it — model IDs in `supabase/functions/_shared/hf.ts` (`Salesforce/blip-image-captioning-large`, `black-forest-labs/FLUX.1-Kontext-dev`) were current as of this writing, but Hugging Face's provider routing shifts over time, so re-check https://huggingface.co/docs/api-inference/tasks/image-to-image if calls start failing.
 
-### 4. Local secrets
-- [ ] Copy `local.properties.example` → `local.properties` (if not already done in step 2) and also point `sdk.dir` at your Android SDK install
+### 4. Local secrets — done
+`local.properties` has the real `sdk.dir`, `supabase.url`, and `supabase.anonKey`.
 
 None of the above files with real secrets (`local.properties`, Supabase function secrets) are tracked by git — see `.gitignore`.
 
-## Running locally once the above is done
+## Running locally
+
+Backend is already linked, pushed, and deployed (see Status above). If you
+change `supabase/migrations/` or `supabase/functions/` later, re-run:
 
 ```bash
-# Backend: push schema and deploy functions (see checklist above)
-supabase link --project-ref <your-project-ref>
 supabase db push
 supabase functions deploy replace
 supabase functions deploy create-sub-account
+```
 
-# App, from the command line (once local.properties has real Supabase values):
+For the app:
+
+```bash
 .\gradlew.bat assembleDebug
 # APK lands at app\build\outputs\apk\debug\app-debug.apk
 
